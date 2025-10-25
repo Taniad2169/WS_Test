@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>WebSwan – Cookie & Accessibility Live Checker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<style>
+:root{--accent1:#2cd0e6;--accent2:#58e8d7;--muted:#6c757d;--good:#d4edda;--bad:#f8d7da;--warn:#fff3cd}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;margin:0;padding:0;background:#7bc4c9;color:#1e2d3b;font-size:16px}
+.wrap{max-width:1250px;margin:20px auto;padding:25px;border-radius:12px;background:#fff;box-shadow:0 15px 35px rgba(170, 227, 222, 0.6)}
+header{background:linear-gradient(135deg, #33c8f5, #39a39a);padding:20px;border-radius:12px;color:#ffffff;box-shadow:0 8px 25px rgba(0,0,0,0.2);border-bottom:4px solid #2a9d8f}
+header h1{margin:0;font-size:2rem;font-weight:800;text-shadow:1px 1px 3px rgba(0,0,0,0.3)}
+header p{font-size:1.1rem;font-weight:600;text-shadow:1px 1px 2px rgba(0,0,0,0.2)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:25px;margin-top:20px}
+.card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 10px 25px rgba(170, 227, 222, 0.5);min-height:240px;font-size:1.05rem;border:1px solid #e6f7f5}
+.card h3{font-size:1.4rem}
+label{display:block;margin-top:12px;color:var(--muted);font-weight:600;font-size:1.05rem}
+input[type="url"],select{width:100%;padding:12px;border:1px solid #e6eef0;border-radius:8px;margin-top:8px;box-sizing:border-box;font-size:1.05rem}
+.btn{display:inline-block;margin-top:15px;padding:12px 16px;border-radius:8px;border:none;background:linear-gradient(90deg,var(--accent1),var(--accent2));color:white;font-weight:700;cursor:pointer;font-size:1.05rem;box-shadow:0 4px 15px rgba(170, 227, 222, 0.4)}
+.secondary{background:#84cdcf;color:#05313a}
+.loading{display:none;text-align:center;margin-top:15px;font-size:1.05rem}
+.spinner{border:3px solid #f3f3f3;border-top:3px solid var(--accent1);border-radius:50%;width:26px;height:26px;animation:spin 1s linear infinite;margin:6px auto}
+@keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+.results{margin-top:15px;padding:15px;background:#f8fdff;border-radius:8px;border-left:4px solid var(--accent1);display:none;font-size:1.05rem;box-shadow:0 5px 15px rgba(170, 227, 222, 0.3)}
+.result-item{padding:12px;border-radius:6px;margin-bottom:10px;background:#fff;border-left:3px solid #84cdcf;font-size:1rem;box-shadow:0 2px 8px rgba(170, 227, 222, 0.2)}
+.result-item.success{background:var(--good);border-left-color:#28a745}
+.result-item.error{background:var(--bad);border-left-color:#dc3545}
+.result-item.warn{background:var(--warn);border-left-color:#ffc107}
+.score{font-weight:800;padding:12px;text-align:center;border-radius:8px;margin-top:10px;background:#fff;font-size:1.1rem;box-shadow:0 5px 15px rgba(170, 227, 222, 0.3)}
+.explain{margin-top:10px;padding:12px;background:#fff;border-radius:8px;font-size:1.05rem;box-shadow:0 5px 15px rgba(170, 227, 222, 0.3)}
+.pdf-btn{margin-top:10px;padding:10px 14px;border-radius:8px;border:none;background:#07364a;color:white;cursor:pointer;font-size:1.05rem;box-shadow:0 4px 10px rgba(170, 227, 222, 0.3)}
+footer{margin-top:20px;color:#05313a;font-size:1rem;text-align:center}
+@media(max-width:900px){.grid{grid-template-columns:1fr}}
+.page-lock{position:fixed;inset:0;background:rgba(4,12,20,0.6);z-index:9999;display:flex;align-items:center;justify-content:center}
+.login-box{background:white;padding:25px;border-radius:12px;width:92%;max-width:420px;box-shadow:0 10px 40px rgba(0,0,0,0.4);text-align:left}
+.login-box h2{margin:0 0 10px 0;font-size:1.4rem;color:#083e56}
+.login-box p{margin:0 0 15px 0;color:#334e57;font-size:1rem}
+.login-box input[type="password"]{width:100%;padding:12px;border:1px solid #d0e9ef;border-radius:8px;box-sizing:border-box;margin-bottom:12px;font-size:1rem}
+.login-box button{display:inline-block;padding:12px 16px;border-radius:8px;border:none;background:linear-gradient(90deg,var(--accent1),var(--accent2));color:white;font-weight:700;cursor:pointer;font-size:1rem}
+.login-error{color:#b91c1c;margin-top:10px;display:none;font-size:1rem}
+.locked{pointer-events:none;user-select:none;filter:blur(0.2px)}
+.report-section{margin:20px 0;padding:18px;background:#f8f9fa;border-radius:8px;font-size:1.05rem;box-shadow:0 5px 15px rgba(170, 227, 222, 0.2)}
+.report-header{background:linear-gradient(135deg,#33c8f5,#39a39a);color:white;padding:20px;border-radius:8px;margin-bottom:18px;box-shadow:0 6px 20px rgba(0,0,0,0.15);border-bottom:3px solid #2a9d8f}
+.score-breakdown{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:18px 0}
+.score-item{background:white;padding:12px;border-radius:6px;text-align:center;border-left:4px solid #3498db;box-shadow:0 3px 10px rgba(170, 227, 222, 0.2)}
+.recommendations{background:#e8f4f8;padding:18px;border-radius:8px;margin:18px 0;box-shadow:0 5px 15px rgba(170, 227, 222, 0.2)}
+.risk-assessment{background:#fff3cd;padding:18px;border-radius:8px;margin:18px 0;border-left:4px solid #ffc107;box-shadow:0 5px 15px rgba(170, 227, 222, 0.2)}
+.next-steps{background:#d4edda;padding:18px;border-radius:8px;margin:18px 0;border-left:4px solid #28a745;box-shadow:0 5px 15px rgba(170, 227, 222, 0.2)}
+</style>
+</head>
+<body>
+<div id="pageLock" class="page-lock" role="dialog" aria-modal="true" aria-label="Admin login">
+<div class="login-box" role="document">
+<h2>Enter Admin Password</h2>
+<p>This page is protected. Please enter the admin password to continue.</p>
+<input id="openPassword" type="password" aria-label="Admin password" placeholder="Password"/>
+<div style="display:flex;gap:8px;align-items:center">
+<button id="openLoginBtn" aria-label="Submit password">Unlock</button>
+</div>
+<div id="openLoginError" class="login-error">Incorrect password – please try again.</div>
+</div>
+</div>
+
+<div class="wrap" id="mainContent" aria-hidden="true">
+<header>
+<h1>🍪 + ♿ WebSwan – Live Cookie & Accessibility Checker</h1>
+<p style="margin:6px 0 0;color:#ffffff;font-weight:600;text-shadow:1px 1px 2px rgba(0,0,0,0.2)">Run both checks, download PDF reports, and get a persuasive summary to share with clients.</p>
+</header>
+
+<div class="grid">
+<div class="card" id="cookie-card">
+<h3>🍪 Cookie Compliance</h3>
+<label for="cookie-url">Website URL</label>
+<input id="cookie-url" type="url" placeholder="example.com" value="https://www.">
+<label for="cookie-state">Business Location</label>
+<select id="cookie-state">
+<option value="">-- Select State --</option>
+<option value="CA">California (CCPA/CPRA)</option>
+<option value="FL">Florida</option>
+<option value="TX">Texas</option>
+<option value="NJ">New Jersey</option>
+<option value="CT">Connecticut</option>
+<option value="PA">Pennsylvania</option>
+<option value="GA">Georgia</option>
+<option value="NY">New York</option>
+<option value="VA">Virginia</option>
+<option value="CO">Colorado</option>
+<option value="other">Other</option>
+</select>
+<button class="btn" id="cookie-run">🔍 Test Cookie</button>
+<button class="btn secondary pdf-btn" id="cookie-pdf" style="display:none">📄 Download Cookie PDF</button>
+<div class="loading" id="cookie-loading"><div class="spinner"></div><div>Testing cookie compliance…</div></div>
+<div class="results" id="cookie-results">
+<div id="cookie-findings"></div>
+<div class="score" id="cookie-score"></div>
+<div class="explain" id="cookie-explain"></div>
+</div>
+</div>
+
+<div class="card" id="a11y-card">
+<h3>♿ Accessibility (ADA / WCAG quick check)</h3>
+<label for="a11y-url">Website URL</label>
+<input id="a11y-url" type="url" placeholder="example.com" value="https://www.">
+<label for="a11y-state">Business Location</label>
+<select id="a11y-state">
+<option value="">-- Select State --</option>
+<option value="CA">California</option>
+<option value="FL">Florida</option>
+<option value="TX">Texas</option>
+<option value="NJ">New Jersey</option>
+<option value="CT">Connecticut</option>
+<option value="PA">Pennsylvania</option>
+<option value="GA">Georgia</option>
+<option value="NY">New York</option>
+<option value="other">Other</option>
+</select>
+<button class="btn" id="a11y-run">♿ Test Accessibility</button>
+<button class="btn secondary pdf-btn" id="a11y-pdf" style="display:none">📄 Download Accessibility PDF</button>
+<div class="loading" id="a11y-loading"><div class="spinner"></div><div>Testing accessibility…</div></div>
+<div class="results" id="a11y-results">
+<div id="a11y-findings"></div>
+<div class="score" id="a11y-score"></div>
+<div class="explain" id="a11y-explain"></div>
+</div>
+</div>
+</div>
+
+<div class="card" style="margin-top:20px">
+<h3>🔗 Combined Cookie + Accessibility Test</h3>
+<button class="btn" id="combined-run">Run Combined Test</button>
+<button class="btn secondary pdf-btn" id="combined-pdf" style="display:none">📄 Download Combined PDF</button>
+<div class="results" id="combined-results"></div>
+</div>
+
+<footer>Using CORS proxy to fetch pages. Some sites may still block access due to security policies.</footer>
+</div>
+
+<script>
+(function(){
+const REQUIRED_PASSWORD='admin@777';
+const pageLock=document.getElementById('pageLock');
+const mainContent=document.getElementById('mainContent');
+const pwdInput=document.getElementById('openPassword');
+const btn=document.getElementById('openLoginBtn');
+const err=document.getElementById('openLoginError');
+function unlock(){pageLock.style.display='none';mainContent.classList.remove('locked');mainContent.setAttribute('aria-hidden','false');pwdInput.value='';err.style.display='none'}
+function tryUnlock(){if(pwdInput.value===REQUIRED_PASSWORD){unlock()}else{err.style.display='block';pwdInput.value='';pwdInput.focus()}}
+btn.addEventListener('click',tryUnlock);
+pwdInput.addEventListener('keyup',e=>{if(e.key==='Enter')tryUnlock()});
+mainContent.classList.add('locked');
+mainContent.setAttribute('aria-hidden','true');
+pwdInput.focus()
+})();
+
+const stateLaws={
+'CA':{name:'California',privacyLaws:['CCPA','CPRA'],accessibilityLaws:['Unruh Act','ADA'],privacyFines:'Civil penalties and statutory damages'},
+'FL':{name:'Florida',privacyLaws:['Florida Digital Bill of Rights'],accessibilityLaws:['ADA'],privacyFines:'Enforcement via FTC and state AG'},
+'TX':{name:'Texas',privacyLaws:['Texas Data Privacy and Security Act'],accessibilityLaws:['ADA'],privacyFines:'Enforcement by state AG'},
+'NJ':{name:'New Jersey',privacyLaws:['New Jersey Data Privacy Act'],accessibilityLaws:['ADA','NJ Law Against Discrimination'],privacyFines:'Penalties and remediation costs'},
+'CT':{name:'Connecticut',privacyLaws:['Connecticut Data Privacy Act'],accessibilityLaws:['ADA'],privacyFines:'Enforcement fines possible'},
+'PA':{name:'Pennsylvania',privacyLaws:['Pennsylvania Breach of Personal Information Act'],accessibilityLaws:['ADA'],privacyFines:'Demand letters and litigation risk'},
+'GA':{name:'Georgia',privacyLaws:['No statewide privacy law'],accessibilityLaws:['ADA'],privacyFines:'Enforcement via FTC'},
+'NY':{name:'New York',privacyLaws:['SHIELD Act'],accessibilityLaws:['NY Human Rights Law','ADA'],privacyFines:'Penalties and remediation costs'},
+'VA':{name:'Virginia',privacyLaws:['VCDPA'],accessibilityLaws:['ADA'],privacyFines:'Enforcement fines possible'},
+'CO':{name:'Colorado',privacyLaws:['CPA'],accessibilityLaws:['ADA'],privacyFines:'Enforcement fines possible'},
+'other':{name:'General',privacyLaws:['FTC Act'],accessibilityLaws:['ADA'],privacyFines:'Varies; reputation and legal risk'}
+};
+
+function show(el){if(el)el.style.display='block'}
+function hide(el){if(el)el.style.display='none'}
+function normalizeUrl(url){return /^https?:\/\//i.test(url)?url:'https://'+url}
+
+async function fetchHTML(url){
+try{
+const proxyUrl=`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+const res=await fetch(proxyUrl);
+if(!res.ok)throw new Error('Network error');
+return await res.text()
+}catch(e){
+console.error(e);
+throw new Error('Unable to fetch page. The site may be blocking access or the proxy service is unavailable.')
+}
+}
+
+document.getElementById('cookie-run').addEventListener('click',async function(){
+const url=normalizeUrl(document.getElementById('cookie-url').value.trim());
+const state=document.getElementById('cookie-state').value;
+if(!url||!state){alert('Please fill URL and state');return}
+const loading=document.getElementById('cookie-loading');
+const results=document.getElementById('cookie-results');
+const findingsBox=document.getElementById('cookie-findings');
+const scoreBox=document.getElementById('cookie-score');
+const explainBox=document.getElementById('cookie-explain');
+findingsBox.innerHTML='';scoreBox.innerHTML='';explainBox.innerHTML='';
+show(loading);hide(results);hide(document.getElementById('cookie-pdf'));
+try{
+const html=await fetchHTML(url);
+const hasBanner=/cookie|consent|gdpr|privacy/i.test(html);
+const hasAcceptAll=/accept\s*all/i.test(html);
+const hasRejectAll=/reject\s*all|decline/i.test(html);
+const hasDoNotSell=/do\s*not\s*sell/i.test(html);
+const hasSettings=/cookie\s*settings|preferences/i.test(html);
+const hasPolicy=/cookie\s*policy/i.test(html);
+let score=0;
+findingsBox.innerHTML+=hasBanner?'<div class="result-item success">✅ Cookie banner detected</div>':'<div class="result-item error">❌ No cookie banner</div>';score+=hasBanner?20:0;
+findingsBox.innerHTML+=hasAcceptAll?'<div class="result-item success">✅ Accept All</div>':'<div class="result-item error">❌ Accept All missing</div>';score+=hasAcceptAll?20:0;
+findingsBox.innerHTML+=hasRejectAll?'<div class="result-item success">✅ Reject All</div>':'<div class="result-item warn">⚠️ Reject All missing</div>';score+=hasRejectAll?15:0;
+findingsBox.innerHTML+=hasDoNotSell?'<div class="result-item success">✅ Do Not Sell</div>':'<div class="result-item error">❌ Do Not Sell missing</div>';score+=hasDoNotSell?15:0;
+findingsBox.innerHTML+=hasSettings?'<div class="result-item success">✅ Settings available</div>':'<div class="result-item warn">⚠️ Settings missing</div>';score+=hasSettings?15:0;
+findingsBox.innerHTML+=hasPolicy?'<div class="result-item success">✅ Policy link</div>':'<div class="result-item warn">⚠️ Policy missing</div>';score+=hasPolicy?15:0;
+hide(loading);show(results);
+const stateInfo=stateLaws[state]||stateLaws['other'];
+const statusText=score>=80?'✅ Fully compliant':score>=50?'⚠️ Partial compliance':'❌ Not compliant';
+scoreBox.innerHTML=`<div class="report-header"><h3 style="margin:0;color:white;font-size:1.6rem;font-weight:800;text-shadow:1px 1px 3px rgba(0,0,0,0.3)">Cookie Compliance Report</h3><p style="margin:8px 0 0;color:white;opacity:0.95;font-weight:600;text-shadow:1px 1px 2px rgba(0,0,0,0.2)">Generated for ${url}</p></div><div class="score-breakdown"><div class="score-item"><strong>Overall Score</strong><div style="font-size:26px;font-weight:bold;color:#2c3e50">${score}/100</div><div style="color:${score>=80?'#28a745':score>=50?'#ffc107':'#dc3545'}">${statusText}</div></div><div class="score-item"><strong>Banner Presence</strong><div>${hasBanner?'20/20':'0/20'}</div></div><div class="score-item"><strong>User Controls</strong><div>${(hasAcceptAll?20:0)+(hasRejectAll?15:0)+(hasSettings?15:0)}/50</div></div><div class="score-item"><strong>Legal Requirements</strong><div>${(hasDoNotSell?15:0)+(hasPolicy?15:0)}/30</div></div></div>`;
+explainBox.innerHTML=`<div class="report-section"><h4>📊 Compliance Summary</h4><p>Your website ${statusText.toLowerCase()} with state privacy laws. Based in ${stateInfo.name}, your business must comply with: ${stateInfo.privacyLaws.join(', ')}.</p><div class="risk-assessment"><h4>⚠️ Risk Assessment</h4><p><strong>Current Risk Level:</strong> ${score>=80?'LOW':score>=50?'MEDIUM':'HIGH'}</p><p>${score<50?'🚨 Immediate action required to avoid potential fines and legal action.':score<80?'⚠️ Moderate compliance gaps that should be addressed promptly.':'✅ Minimal compliance risk with current implementation.'}</p></div><div class="recommendations"><h4>🎯 Recommended Actions</h4>${!hasBanner?'<p>• Implement a clear cookie consent banner</p>':''}${!hasAcceptAll?'<p>• Add "Accept All" functionality</p>':''}${!hasRejectAll?'<p>• Add "Reject All" option for user choice</p>':''}${!hasDoNotSell?'<p>• Implement "Do Not Sell My Personal Information" link</p>':''}${!hasSettings?'<p>• Create granular cookie preference settings</p>':''}${!hasPolicy?'<p>• Publish comprehensive cookie policy</p>':''}${score>=80?'<p>• Maintain current compliance with regular audits</p>':''}</div></div>`;
+show(document.getElementById('cookie-pdf'))
+}catch(err){hide(loading);alert(err.message)}
+});
+
+document.getElementById('a11y-run').addEventListener('click',async function(){
+const url=normalizeUrl(document.getElementById('a11y-url').value.trim());
+const state=document.getElementById('a11y-state').value;
+if(!url||!state){alert('Please fill URL and state');return}
+const loading=document.getElementById('a11y-loading');
+const results=document.getElementById('a11y-results');
+const findingsBox=document.getElementById('a11y-findings');
+const scoreBox=document.getElementById('a11y-score');
+const explainBox=document.getElementById('a11y-explain');
+findingsBox.innerHTML='';scoreBox.innerHTML='';explainBox.innerHTML='';
+show(loading);hide(results);hide(document.getElementById('a11y-pdf'));
+try{
+const html=await fetchHTML(url);
+const hasAlt=/<img [^>]*alt=/i.test(html);
+const hasLabels=/<label [^>]*for=/i.test(html);
+const hasH1=/<h1>/i.test(html);
+const hasFormInputs=/<input|<select|<textarea/i.test(html);
+let score=0;
+findingsBox.innerHTML+=hasAlt?'<div class="result-item success">✅ Images have alt text</div>':'<div class="result-item error">❌ Missing alt text</div>';score+=hasAlt?25:0;
+findingsBox.innerHTML+=hasLabels?'<div class="result-item success">✅ Labels on form inputs</div>':'<div class="result-item warn">⚠️ Missing labels</div>';score+=hasLabels?25:0;
+findingsBox.innerHTML+=hasH1?'<div class="result-item success">✅ H1 headings present</div>':'<div class="result-item warn">⚠️ Missing H1 headings</div>';score+=hasH1?25:0;
+findingsBox.innerHTML+=hasFormInputs?'<div class="result-item success">✅ Form inputs accessible</div>':'<div class="result-item warn">⚠️ Form inputs missing or inaccessible</div>';score+=hasFormInputs?25:0;
+hide(loading);show(results);
+const stateInfo=stateLaws[state]||stateLaws['other'];
+const statusText=score>=80?'✅ Good accessibility':score>=50?'⚠️ Partial accessibility':'❌ Poor accessibility';
+scoreBox.innerHTML=`<div class="report-header"><h3 style="margin:0;color:white;font-size:1.6rem;font-weight:800;text-shadow:1px 1px 3px rgba(0,0,0,0.3)">Accessibility Compliance Report</h3><p style="margin:8px 0 0;color:white;opacity:0.95;font-weight:600;text-shadow:1px 1px 2px rgba(0,0,0,0.2)">Generated for ${url}</p></div><div class="score-breakdown"><div class="score-item"><strong>Overall Score</strong><div style="font-size:26px;font-weight:bold;color:#2c3e50">${score}/100</div><div style="color:${score>=80?'#28a745':score>=50?'#ffc107':'#dc3545'}">${statusText}</div></div><div class="score-item"><strong>Image Accessibility</strong><div>${hasAlt?'25/25':'0/25'}</div></div><div class="score-item"><strong>Form Accessibility</strong><div>${hasLabels?'25/25':'0/25'}</div></div><div class="score-item"><strong>Structure</strong><div>${hasH1?'25/25':'0/25'}</div></div><div class="score-item"><strong>Interactive Elements</strong><div>${hasFormInputs?'25/25':'0/25'}</div></div></div>`;
+explainBox.innerHTML=`<div class="report-section"><h4>📊 Accessibility Summary</h4><p>Your website ${statusText.toLowerCase()} with WCAG 2.1 AA standards. Based in ${stateInfo.name}, your business must comply with: ${stateInfo.accessibilityLaws.join(', ')}.</p><div class="risk-assessment"><h4>⚠️ Legal Risk Assessment</h4><p><strong>Current Risk Level:</strong> ${score>=80?'LOW':score>=50?'MEDIUM':'HIGH'}</p><p>${score<50?'🚨 High risk of accessibility lawsuits and demand letters.':score<80?'⚠️ Moderate accessibility gaps that could lead to legal challenges.':'✅ Minimal legal risk with current accessibility implementation.'}</p><p><strong>Potential Exposure:</strong> ${stateInfo.privacyFines}, plus legal fees and reputation damage.</p></div><div class="recommendations"><h4>🎯 Critical Improvements Needed</h4>${!hasAlt?'<p>• Add descriptive alt text to all images</p>':''}${!hasLabels?'<p>• Ensure all form fields have associated labels</p>':''}${!hasH1?'<p>• Implement proper heading structure with H1 tags</p>':''}${!hasFormInputs?'<p>• Make all interactive elements keyboard accessible</p>':''}${score>=80?'<p>• Continue regular accessibility testing and maintenance</p>':'<p>• Conduct full WCAG 2.1 AA compliance audit</p>'}</div></div>`;
+show(document.getElementById('a11y-pdf'))
+}catch(err){hide(loading);alert(err.message)}
+});
+
+document.getElementById('combined-run').addEventListener('click',async function(){
+const cookieUrl=document.getElementById('cookie-url').value.trim();
+const a11yUrl=document.getElementById('a11y-url').value.trim();
+const cookieState=document.getElementById('cookie-state').value;
+const a11yState=document.getElementById('a11y-state').value;
+if(!cookieUrl||!cookieState||!a11yUrl||!a11yState){alert('Please fill in all fields in both sections');return}
+const resultsDiv=document.getElementById('combined-results');
+resultsDiv.style.display='block';
+resultsDiv.innerHTML='<div style="text-align:center;padding:20px">Running combined tests…</div>';
+document.getElementById('cookie-run').click();
+setTimeout(()=>{
+document.getElementById('a11y-run').click();
+setTimeout(()=>{
+resultsDiv.innerHTML='<div style="background:#d4edda;padding:20px;border-radius:8px;text-align:center"><strong style="font-size:1.3em">✅ Combined Compliance Assessment Complete!</strong><br><p style="margin:10px 0">Both cookie compliance and accessibility reports are ready above.</p><div style="background:white;padding:15px;border-radius:8px;margin-top:10px;text-align:left"><h4 style="margin-top:0">📋 Executive Summary</h4><p>Your website has been evaluated for both privacy compliance and accessibility standards. Download the comprehensive PDF reports to share with stakeholders and develop your compliance roadmap.</p><p><strong>Next Steps:</strong> Address high-priority issues first, then implement the recommended improvements according to the provided timeline.</p></div></div>';
+show(document.getElementById('combined-pdf'))
+},1000)
+},1000)
+});
+
+function createPDFWrapper(content,title){
+const container=document.createElement('div');
+container.style.cssText='max-width:190mm;margin:0 auto;padding:15mm;background:#fff;color:#000;font-family:Arial,sans-serif;box-sizing:border-box;box-shadow:0 10px 30px rgba(170, 227, 222, 0.4);border-radius:8px;border:2px solid #14395d';
+const heading=document.createElement('h2');
+heading.textContent=title;
+heading.style.cssText='background:linear-gradient(135deg, #33c8f5, #39a39a);color:white;margin:0 0 20px 0;padding:18px;border-radius:8px;text-align:center;font-size:1.6rem;font-weight:800;text-shadow:1px 1px 3px rgba(0,0,0,0.3);box-shadow:0 6px 20px rgba(0,0,0,0.15);border-bottom:3px solid #2a9d8f';
+container.appendChild(heading);
+const contentDiv=document.createElement('div');
+contentDiv.innerHTML=content;
+contentDiv.style.cssText='margin:0;padding:0;width:100%;box-sizing:border-box';
+container.appendChild(contentDiv);
+const disclaimer=document.createElement('div');
+disclaimer.style.cssText='margin-top:25px;padding:15px;background:#f8f9fa;border-radius:8px;font-size:0.9em;color:#6c757d;border-top:1px solid #dee2e6;box-sizing:border-box';
+disclaimer.innerHTML=`<p><strong>Disclaimer:</strong> This automated report provides initial compliance assessment. For comprehensive legal advice, consult with qualified privacy attorneys.</p><p>Generated by WebSwan Compliance Checker • ${new Date().toLocaleDateString()}</p>`;
+container.appendChild(disclaimer);
+return container
+}
+
+document.getElementById('cookie-pdf').addEventListener('click',function(){
+setTimeout(()=>{
+const scoreContent=document.getElementById('cookie-score').innerHTML;
+let explainContent=document.getElementById('cookie-explain').innerHTML;
+// Remove the Next Steps section from the PDF
+explainContent = explainContent.replace(/<div class="next-steps">[\s\S]*?<\/div>/, '');
+const wrapper=createPDFWrapper(scoreContent+explainContent,'🍪 Cookie Compliance Report');
+document.body.appendChild(wrapper);
+html2pdf().set({margin:[10,10,10,10],filename:'cookie-compliance-report.pdf',html2canvas:{scale:2,useCORS:true,scrollY:0,width:wrapper.offsetWidth},jsPDF:{unit:'mm',format:'a4',orientation:'portrait',compress:true}}).from(wrapper).save().then(()=>{document.body.removeChild(wrapper)})
+},500)
+});
+
+document.getElementById('a11y-pdf').addEventListener('click',function(){
+setTimeout(()=>{
+const scoreContent=document.getElementById('a11y-score').innerHTML;
+let explainContent=document.getElementById('a11y-explain').innerHTML;
+// Remove the Next Steps section from the PDF
+explainContent = explainContent.replace(/<div class="next-steps">[\s\S]*?<\/div>/, '');
+const wrapper=createPDFWrapper(scoreContent+explainContent,'♿ Accessibility Compliance Report');
+document.body.appendChild(wrapper);
+html2pdf().set({margin:[10,10,10,10],filename:'accessibility-compliance-report.pdf',html2canvas:{scale:2,useCORS:true,scrollY:0,width:wrapper.offsetWidth},jsPDF:{unit:'mm',format:'a4',orientation:'portrait',compress:true}}).from(wrapper).save().then(()=>{document.body.removeChild(wrapper)})
+},500)
+});
+
+document.getElementById('combined-pdf').addEventListener('click',function(){
+setTimeout(()=>{
+const container=document.createElement('div');
+container.style.cssText='max-width:190mm;margin:0 auto;padding:15mm;background:#fff;color:#000;font-family:Arial,sans-serif;box-sizing:border-box;box-shadow:0 10px 30px rgba(170, 227, 222, 0.4);border-radius:8px;border:2px solid #14395d';
+const mainTitle=document.createElement('h1');
+mainTitle.textContent='Comprehensive Compliance Report';
+mainTitle.style.cssText='background:linear-gradient(135deg, #33c8f5, #39a39a);color:white;text-align:center;margin:0 0 25px 0;padding:18px;border-radius:8px;font-size:1.8rem;font-weight:800;text-shadow:1px 1px 3px rgba(0,0,0,0.3);box-shadow:0 6px 20px rgba(0,0,0,0.15);border-bottom:3px solid #2a9d8f';
+container.appendChild(mainTitle);
+const cookieTitle=document.createElement('h2');
+cookieTitle.textContent='🍪 Cookie Compliance';
+cookieTitle.style.cssText='color:#083e56;margin:0 0 15px 0;padding-bottom:8px;border-bottom:1px solid #ccc;font-size:1.4rem';
+container.appendChild(cookieTitle);
+let cookieDiv=document.createElement('div');
+let cookieContent=document.getElementById('cookie-score').innerHTML+document.getElementById('cookie-explain').innerHTML;
+cookieContent = cookieContent.replace(/<div class="next-steps">[\s\S]*?<\/div>/, '');
+cookieDiv.innerHTML=cookieContent;
+cookieDiv.style.cssText='margin-bottom:25px;width:100%;box-sizing:border-box';
+container.appendChild(cookieDiv);
+const a11yTitle=document.createElement('h2');
+a11yTitle.textContent='♿ Accessibility Compliance';
+a11yTitle.style.cssText='color:#083e56;margin:30px 0 15px 0;padding-bottom:8px;border-bottom:1px solid #ccc;page-break-before:always;font-size:1.4rem';
+container.appendChild(a11yTitle);
+let a11yDiv=document.createElement('div');
+let a11yContent=document.getElementById('a11y-score').innerHTML+document.getElementById('a11y-explain').innerHTML;
+a11yContent = a11yContent.replace(/<div class="next-steps">[\s\S]*?<\/div>/, '');
+a11yDiv.innerHTML=a11yContent;
+a11yDiv.style.cssText='margin-bottom:25px;width:100%;box-sizing:border-box';
+container.appendChild(a11yDiv);
+const summaryDiv=document.createElement('div');
+summaryDiv.style.cssText='margin-top:30px;padding:18px;background:#f8f9fa;border-radius:8px;box-sizing:border-box;page-break-before:always';
+summaryDiv.innerHTML=`<h3 style="color:#2c3e50;margin-top:0;font-size:1.3rem">Executive Summary & Recommendations</h3><p>This comprehensive assessment evaluates both privacy compliance and accessibility standards for your website. The reports above identify specific areas for improvement with prioritized recommendations.</p><p><strong>Key Priorities:</strong></p><ul><li>Address high-risk compliance gaps immediately (0-30 days)</li><li>Implement recommended improvements according to the provided timelines</li><li>Establish ongoing compliance monitoring and staff training</li><li>Consider professional legal review for comprehensive compliance</li></ul><div style="margin-top:25px;padding:15px;background:#e8f4f8;border-radius:8px;font-size:0.9em;box-sizing:border-box"><p><strong>Generated by WebSwan Compliance Checker</strong></p><p>Date: ${new Date().toLocaleDateString()} | For professional compliance consultation, contact qualified legal experts.</p></div>`;
+container.appendChild(summaryDiv);
+document.body.appendChild(container);
+html2pdf().set({margin:[10,10,10,10],filename:'comprehensive-compliance-report.pdf',html2canvas:{scale:2,useCORS:true,scrollY:0,width:container.offsetWidth},jsPDF:{unit:'mm',format:'a4',orientation:'portrait',compress:true}}).from(container).save().then(()=>{document.body.removeChild(container)})
+},500)
+});
+</script>
+</body>
+</html>
